@@ -1,0 +1,209 @@
+<Window x:Class="CrudWpfDemo.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="School Manager - Gestion de Scolarité" Height="620" Width="1100"
+        WindowStartupLocation="CenterScreen" Background="#F8FAFC">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <!-- Sidebar column -->
+            <ColumnDefinition Width="250" />
+            <!-- Main Content column -->
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- ===================== SIDEBAR ===================== -->
+        <Grid Grid.Column="0" Background="#0F172A">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="90" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="50" />
+            </Grid.RowDefinitions>
+
+            <!-- Brand Header -->
+            <StackPanel Grid.Row="0" VerticalAlignment="Center" Margin="20,0,20,0">
+                <TextBlock Text="School Manager" Foreground="White" FontSize="20" FontWeight="Bold" />
+                <TextBlock Text="Portail d'Administration" Foreground="#64748B" FontSize="11" Margin="2,4,0,0" />
+            </StackPanel>
+
+            <!-- Navigation Buttons -->
+            <StackPanel Grid.Row="1" Margin="5,15,5,15">
+                <Button x:Name="BtnMenuInscriptions"
+                        Content="🎓   Inscriptions"
+                        Style="{StaticResource BoutonMenuActive}"
+                        Click="BtnMenu_Click" />
+                <Button x:Name="BtnMenuClasses"
+                        Content="🏫   Classes"
+                        Style="{StaticResource BoutonMenu}"
+                        Click="BtnMenu_Click" />
+                <Button x:Name="BtnMenuNotes"
+                        Content="📝   Notes &amp; Bulletins"
+                        Style="{StaticResource BoutonMenu}"
+                        Click="BtnMenu_Click" />
+            </StackPanel>
+
+            <!-- API Status Indicator -->
+            <StackPanel Grid.Row="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0,20,0">
+                <Ellipse Width="8" Height="8" Fill="#10B981" Margin="0,1,8,0" />
+                <TextBlock x:Name="TxtApiStatus" Text="API: Connecté (8000)" Foreground="#94A3B8" FontSize="11" VerticalAlignment="Center" />
+            </StackPanel>
+        </Grid>
+
+        <!-- ===================== MAIN CONTENT ===================== -->
+        <Grid Grid.Column="1" Margin="25">
+            
+            <!-- Global Status Message Overlay (Floating message bar) -->
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            
+            <Border x:Name="StatusBanner" Background="#EEF2FF" CornerRadius="6" Padding="12,8" Margin="0,0,0,15" Visibility="Collapsed">
+                <TextBlock x:Name="TxtStatusMessage" Text="Message système" Foreground="#4F46E5" FontWeight="SemiBold" FontSize="12" />
+            </Border>
+
+            <!-- 1. MODULE INSCRIPTIONS -->
+            <Grid x:Name="GridInscriptions" Grid.Row="1" Visibility="Visible">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="320" />
+                    <ColumnDefinition Width="25" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Form -->
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Inscrire un Étudiant" Style="{StaticResource TitrePage}" />
+
+                    <TextBlock Text="Nom de Famille" Style="{StaticResource Libelle}" />
+                    <TextBox x:Name="TxtStudentNom" Style="{StaticResource ChampSaisie}" />
+
+                    <TextBlock Text="Prénom" Style="{StaticResource Libelle}" />
+                    <TextBox x:Name="TxtStudentPrenom" Style="{StaticResource ChampSaisie}" />
+
+                    <TextBlock Text="Adresse E-mail" Style="{StaticResource Libelle}" />
+                    <TextBox x:Name="TxtStudentEmail" Style="{StaticResource ChampSaisie}" />
+
+                    <TextBlock Text="Classe Affectée" Style="{StaticResource Libelle}" />
+                    <ComboBox x:Name="ComboStudentClasse" Style="{StaticResource SelectionCombo}" DisplayMemberPath="Nom" SelectedValuePath="Id" />
+
+                    <StackPanel Orientation="Horizontal" Margin="0,25,0,0">
+                        <Button x:Name="BtnStudentAjouter" Content="Inscrire" Style="{StaticResource BoutonSuccess}" Width="110" Click="BtnStudentAjouter_Click" />
+                        <Button x:Name="BtnStudentModifier" Content="Modifier" Style="{StaticResource BoutonPrimaire}" Width="110" Click="BtnStudentModifier_Click" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Button x:Name="BtnStudentSupprimer" Content="Supprimer" Style="{StaticResource BoutonDanger}" Width="110" Click="BtnStudentSupprimer_Click" />
+                        <Button x:Name="BtnStudentEffacer" Content="Vider" Style="{StaticResource BoutonBase}" Background="#64748B" Width="110" Click="BtnStudentEffacer_Click" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- DataGrid -->
+                <Grid Grid.Column="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="Liste des étudiants inscrits" Style="{StaticResource TitrePage}" />
+                    <DataGrid x:Name="GrilleStudents" Grid.Row="1" Style="{StaticResource GrilleDonnees}" SelectionChanged="GrilleStudents_SelectionChanged">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Prénom" Binding="{Binding Prenom}" Width="*" />
+                            <DataGridTextColumn Header="Nom" Binding="{Binding Nom}" Width="*" />
+                            <DataGridTextColumn Header="E-mail" Binding="{Binding Email}" Width="1.5*" />
+                            <DataGridTextColumn Header="Classe" Binding="{Binding NomClasse}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Grid>
+
+            <!-- 2. MODULE CLASSES -->
+            <Grid x:Name="GridClasses" Grid.Row="1" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="320" />
+                    <ColumnDefinition Width="25" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Form -->
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Ajouter une Classe" Style="{StaticResource TitrePage}" />
+
+                    <TextBlock Text="Nom de la Classe" Style="{StaticResource Libelle}" />
+                    <TextBox x:Name="TxtClassNom" Style="{StaticResource ChampSaisie}" />
+
+                    <StackPanel Orientation="Horizontal" Margin="0,25,0,0">
+                        <Button x:Name="BtnClassAjouter" Content="Créer" Style="{StaticResource BoutonSuccess}" Width="110" Click="BtnClassAjouter_Click" />
+                        <Button x:Name="BtnClassModifier" Content="Modifier" Style="{StaticResource BoutonPrimaire}" Width="110" Click="BtnClassModifier_Click" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Button x:Name="BtnClassSupprimer" Content="Supprimer" Style="{StaticResource BoutonDanger}" Width="110" Click="BtnClassSupprimer_Click" />
+                        <Button x:Name="BtnClassEffacer" Content="Vider" Style="{StaticResource BoutonBase}" Background="#64748B" Width="110" Click="BtnClassEffacer_Click" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- DataGrid -->
+                <Grid Grid.Column="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="Liste des classes enregistrées" Style="{StaticResource TitrePage}" />
+                    <DataGrid x:Name="GrilleClasses" Grid.Row="1" Style="{StaticResource GrilleDonnees}" SelectionChanged="GrilleClasses_SelectionChanged">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Nom de la classe" Binding="{Binding Nom}" Width="2*" />
+                            <DataGridTextColumn Header="Nombre d'étudiants" Binding="{Binding NombreEtudiants}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Grid>
+
+            <!-- 3. MODULE NOTES -->
+            <Grid x:Name="GridNotes" Grid.Row="1" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="320" />
+                    <ColumnDefinition Width="25" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Form -->
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Saisir des Notes" Style="{StaticResource TitrePage}" />
+
+                    <TextBlock Text="Étudiant" Style="{StaticResource Libelle}" />
+                    <ComboBox x:Name="ComboGradeStudent" Style="{StaticResource SelectionCombo}" DisplayMemberPath="Email" SelectedValuePath="Id" />
+
+                    <TextBlock Text="Matière / Cours" Style="{StaticResource Libelle}" />
+                    <TextBox x:Name="TxtGradeMatiere" Style="{StaticResource ChampSaisie}" />
+
+                    <TextBlock Text="Note (0.0 - 20.0)" Style="{StaticResource Libelle}" />
+                    <TextBox x:Name="TxtGradeValeur" Style="{StaticResource ChampSaisie}" />
+
+                    <StackPanel Orientation="Horizontal" Margin="0,25,0,0">
+                        <Button x:Name="BtnGradeAjouter" Content="Enregistrer" Style="{StaticResource BoutonSuccess}" Width="110" Click="BtnGradeAjouter_Click" />
+                        <Button x:Name="BtnGradeModifier" Content="Modifier" Style="{StaticResource BoutonPrimaire}" Width="110" Click="BtnGradeModifier_Click" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Button x:Name="BtnGradeSupprimer" Content="Supprimer" Style="{StaticResource BoutonDanger}" Width="110" Click="BtnGradeSupprimer_Click" />
+                        <Button x:Name="BtnGradeEffacer" Content="Vider" Style="{StaticResource BoutonBase}" Background="#64748B" Width="110" Click="BtnGradeEffacer_Click" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- DataGrid -->
+                <Grid Grid.Column="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="Relevé des notes" Style="{StaticResource TitrePage}" />
+                    <DataGrid x:Name="GrilleNotes" Grid.Row="1" Style="{StaticResource GrilleDonnees}" SelectionChanged="GrilleNotes_SelectionChanged">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Étudiant" Binding="{Binding NomCompletEtudiant}" Width="1.5*" />
+                            <DataGridTextColumn Header="Classe" Binding="{Binding NomClasse}" Width="*" />
+                            <DataGridTextColumn Header="Matière" Binding="{Binding Matiere}" Width="*" />
+                            <DataGridTextColumn Header="Note / 20" Binding="{Binding Valeur, StringFormat={}{0:F2}}" Width="80" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Grid>
+
+        </Grid>
+    </Grid>
+</Window>
