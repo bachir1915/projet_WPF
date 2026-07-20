@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -31,6 +32,7 @@ namespace CrudWpfDemo
             GrilleStudents.ItemsSource = _students;
             GrilleClasses.ItemsSource = _classes;
             GrilleNotes.ItemsSource = _notes;
+            GrilleDashboardStudents.ItemsSource = _students;
 
             // Load data on startup
             this.Loaded += MainWindow_Loaded;
@@ -75,11 +77,13 @@ namespace CrudWpfDemo
             if (clickedButton == null) return;
 
             // Reset active style on all menu buttons
+            BtnMenuDashboard.Style = (Style)FindResource("BoutonMenu");
             BtnMenuInscriptions.Style = (Style)FindResource("BoutonMenu");
             BtnMenuClasses.Style = (Style)FindResource("BoutonMenu");
             BtnMenuNotes.Style = (Style)FindResource("BoutonMenu");
 
             // Hide all views
+            GridDashboard.Visibility = Visibility.Collapsed;
             GridInscriptions.Visibility = Visibility.Collapsed;
             GridClasses.Visibility = Visibility.Collapsed;
             GridNotes.Visibility = Visibility.Collapsed;
@@ -87,7 +91,12 @@ namespace CrudWpfDemo
             // Activate chosen view and button style
             clickedButton.Style = (Style)FindResource("BoutonMenuActive");
 
-            if (clickedButton == BtnMenuInscriptions)
+            if (clickedButton == BtnMenuDashboard)
+            {
+                GridDashboard.Visibility = Visibility.Visible;
+                UpdateDashboardStats();
+            }
+            else if (clickedButton == BtnMenuInscriptions)
             {
                 GridInscriptions.Visibility = Visibility.Visible;
             }
@@ -138,6 +147,8 @@ namespace CrudWpfDemo
 
             ComboGradeStudent.ItemsSource = null;
             ComboGradeStudent.ItemsSource = _students;
+            
+            UpdateDashboardStats();
         }
 
         private async Task LoadNotesAsync()
@@ -153,6 +164,8 @@ namespace CrudWpfDemo
                     _notes.Add(item);
                 }
             }
+
+            UpdateDashboardStats();
         }
 
         // ==========================================
@@ -169,13 +182,20 @@ namespace CrudWpfDemo
                 return;
             }
 
+            string email = TxtStudentEmail.Text.Trim();
+            if (!IsValidEmail(email, out string errorMsg))
+            {
+                ShowStatus(errorMsg, true);
+                return;
+            }
+
             try
             {
                 var postData = new FormUrlEncodedContent(new[]
                 {
                     new KeyValuePair<string, string>("nom", TxtStudentNom.Text.Trim()),
                     new KeyValuePair<string, string>("prenom", TxtStudentPrenom.Text.Trim()),
-                    new KeyValuePair<string, string>("email", TxtStudentEmail.Text.Trim()),
+                    new KeyValuePair<string, string>("email", email),
                     new KeyValuePair<string, string>("id_classe", ComboStudentClasse.SelectedValue.ToString()!)
                 });
 
@@ -218,6 +238,13 @@ namespace CrudWpfDemo
                 return;
             }
 
+            string email = TxtStudentEmail.Text.Trim();
+            if (!IsValidEmail(email, out string errorMsg))
+            {
+                ShowStatus(errorMsg, true);
+                return;
+            }
+
             try
             {
                 var postData = new FormUrlEncodedContent(new[]
@@ -225,7 +252,7 @@ namespace CrudWpfDemo
                     new KeyValuePair<string, string>("id", _selectedStudent.Id.ToString()),
                     new KeyValuePair<string, string>("nom", TxtStudentNom.Text.Trim()),
                     new KeyValuePair<string, string>("prenom", TxtStudentPrenom.Text.Trim()),
-                    new KeyValuePair<string, string>("email", TxtStudentEmail.Text.Trim()),
+                    new KeyValuePair<string, string>("email", email),
                     new KeyValuePair<string, string>("id_classe", ComboStudentClasse.SelectedValue.ToString()!)
                 });
 
@@ -645,6 +672,302 @@ namespace CrudWpfDemo
             TxtGradeValeur.Clear();
             _selectedGrade = null;
             GrilleNotes.SelectedItem = null;
+        }
+
+        // ==========================================
+        //  SEARCH & LIVE FILTERING EVENTS
+        // ==========================================
+        private void TxtSearchStudent_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            var filterText = TxtSearchStudent.Text.Trim().ToLower();
+            if (string.IsNullOrEmpty(filterText))
+            {
+                GrilleStudents.ItemsSource = _students;
+            }
+            else
+            {
+                var filtered = new ObservableCollection<Etudiant>();
+                foreach (var student in _students)
+                {
+                    if (student.Nom.ToLower().Contains(filterText) ||
+                        student.Prenom.ToLower().Contains(filterText) ||
+                        student.Email.ToLower().Contains(filterText) ||
+                        student.NomClasse.ToLower().Contains(filterText))
+                    {
+                        filtered.Add(student);
+                    }
+                }
+                GrilleStudents.ItemsSource = filtered;
+            }
+        }
+
+        private void TxtSearchClass_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            var filterText = TxtSearchClass.Text.Trim().ToLower();
+            if (string.IsNullOrEmpty(filterText))
+            {
+                GrilleClasses.ItemsSource = _classes;
+            }
+            else
+            {
+                var filtered = new ObservableCollection<Classe>();
+                foreach (var cls in _classes)
+                {
+                    if (cls.Nom.ToLower().Contains(filterText))
+                    {
+                        filtered.Add(cls);
+                    }
+                }
+                GrilleClasses.ItemsSource = filtered;
+            }
+        }
+
+        private void TxtSearchNotes_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            var filterText = TxtSearchNotes.Text.Trim().ToLower();
+            if (string.IsNullOrEmpty(filterText))
+            {
+                GrilleNotes.ItemsSource = _notes;
+            }
+            else
+            {
+                var filtered = new ObservableCollection<Note>();
+                foreach (var note in _notes)
+                {
+                    if (note.NomCompletEtudiant.ToLower().Contains(filterText) ||
+                        note.NomClasse.ToLower().Contains(filterText) ||
+                        note.Matiere.ToLower().Contains(filterText))
+                    {
+                        filtered.Add(note);
+                    }
+                }
+                GrilleNotes.ItemsSource = filtered;
+            }
+        }
+
+        // ==========================================
+        //  DASHBOARD STATISTICS & ISI EMAIL ASSIGNMENT
+        // ==========================================
+        private void UpdateDashboardStats()
+        {
+            TxtStatTotalStudents.Text = _students.Count.ToString();
+            TxtStatTotalClasses.Text = _classes.Count.ToString();
+            
+            if (_notes.Count > 0)
+            {
+                float sum = 0;
+                foreach (var note in _notes)
+                {
+                    sum += note.Valeur;
+                }
+                float avg = sum / _notes.Count;
+                TxtStatAverage.Text = $"{avg:F2} / 20";
+            }
+            else
+            {
+                TxtStatAverage.Text = "0.00 / 20";
+            }
+
+            // Find major de promotion
+            if (_students.Count > 0 && _notes.Count > 0)
+            {
+                var studentAverages = new Dictionary<int, (string Name, float Sum, int Count)>();
+                foreach (var note in _notes)
+                {
+                    if (!studentAverages.ContainsKey(note.IdEtudiant))
+                    {
+                        studentAverages[note.IdEtudiant] = (note.NomCompletEtudiant, 0, 0);
+                    }
+                    var current = studentAverages[note.IdEtudiant];
+                    studentAverages[note.IdEtudiant] = (current.Name, current.Sum + note.Valeur, current.Count + 1);
+                }
+
+                string bestStudentName = "Aucun";
+                float highestAvg = -1f;
+
+                foreach (var pair in studentAverages)
+                {
+                    float studentAvg = pair.Value.Sum / pair.Value.Count;
+                    if (studentAvg > highestAvg)
+                    {
+                        highestAvg = studentAvg;
+                        bestStudentName = $"{pair.Value.Name} ({studentAvg:F1}/20)";
+                    }
+                }
+                TxtStatBestStudent.Text = bestStudentName;
+            }
+            else
+            {
+                TxtStatBestStudent.Text = "Aucun";
+            }
+        }
+
+        private void BtnSelectAll_Click(object sender, RoutedEventArgs e)
+        {
+            foreach (var student in _students)
+            {
+                student.IsSelectedForEmail = true;
+            }
+            GrilleDashboardStudents.Items.Refresh();
+        }
+
+        private void BtnDeselectAll_Click(object sender, RoutedEventArgs e)
+        {
+            foreach (var student in _students)
+            {
+                student.IsSelectedForEmail = false;
+            }
+            GrilleDashboardStudents.Items.Refresh();
+        }
+
+        private async void BtnApplyGroupEmail_Click(object sender, RoutedEventArgs e)
+        {
+            var selectedStudents = new List<Etudiant>();
+            foreach (var student in _students)
+            {
+                if (student.IsSelectedForEmail)
+                {
+                    selectedStudents.Add(student);
+                }
+            }
+
+            if (selectedStudents.Count == 0)
+            {
+                ShowStatus("Veuillez sélectionner au moins un étudiant dans la liste.", true);
+                return;
+            }
+
+            var selectedFormatItem = ComboEmailFormat.SelectedItem as ComboBoxItem;
+            if (selectedFormatItem == null) return;
+            string formatOption = selectedFormatItem.Content.ToString()!;
+
+            int successCount = 0;
+            int failCount = 0;
+
+            foreach (var student in selectedStudents)
+            {
+                string generatedEmail = "";
+                
+                // Clean accents and spaces
+                string cleanPrenom = CleanStringForEmail(student.Prenom);
+                string cleanNom = CleanStringForEmail(student.Nom);
+
+                if (formatOption.Contains("prenom.nom"))
+                {
+                    generatedEmail = $"{cleanPrenom}.{cleanNom}@groupeisi.com";
+                }
+                else if (formatOption.Contains("initiale.nom"))
+                {
+                    string initial = cleanPrenom.Length > 0 ? cleanPrenom.Substring(0, 1) : "";
+                    generatedEmail = $"{initial}.{cleanNom}@groupeisi.com";
+                }
+                else
+                {
+                    generatedEmail = "etudiant@groupeisi.com";
+                }
+
+                try
+                {
+                    var postData = new FormUrlEncodedContent(new[]
+                    {
+                        new KeyValuePair<string, string>("id", student.Id.ToString()),
+                        new KeyValuePair<string, string>("nom", student.Nom),
+                        new KeyValuePair<string, string>("prenom", student.Prenom),
+                        new KeyValuePair<string, string>("email", generatedEmail),
+                        new KeyValuePair<string, string>("id_classe", student.IdClasse.ToString())
+                    });
+
+                    var response = await _httpClient.PostAsync(BaseApiUrl + "etudiant/update.php", postData);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var result = await response.Content.ReadFromJsonAsync<CreateUpdateDeleteResult>();
+                        if (result != null && result.Success)
+                        {
+                            successCount++;
+                        }
+                        else
+                        {
+                            failCount++;
+                        }
+                    }
+                    else
+                    {
+                        failCount++;
+                    }
+                }
+                catch
+                {
+                    failCount++;
+                }
+            }
+
+            ShowStatus($"Attribution e-mails ISI : {successCount} succès, {failCount} échecs.");
+            await LoadStudentsAsync();
+            GrilleDashboardStudents.Items.Refresh();
+        }
+
+        private string CleanStringForEmail(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return "";
+            
+            string normalized = input.Normalize(System.Text.NormalizationForm.FormD);
+            var sb = new System.Text.StringBuilder();
+
+            foreach (char c in normalized)
+            {
+                var unicodeCategory = System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c);
+                if (unicodeCategory != System.Globalization.UnicodeCategory.NonSpacingMark)
+                {
+                    if (char.IsLetterOrDigit(c))
+                    {
+                        sb.Append(char.ToLowerInvariant(c));
+                    }
+                }
+            }
+
+            return sb.ToString();
+        }
+
+        // ==========================================
+        //  EMAIL INPUT VALIDATION (CONTROL SASIE)
+        // ==========================================
+        private bool IsValidEmail(string email, out string errorMessage)
+        {
+            errorMessage = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                errorMessage = "L'adresse e-mail est obligatoire.";
+                return false;
+            }
+
+            // General email format regex check
+            var emailRegex = new Regex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.IgnoreCase);
+            if (!emailRegex.IsMatch(email))
+            {
+                errorMessage = "Format de l'e-mail incorrect (ex: exemple@domaine.com).";
+                return false;
+            }
+
+            // Gmail-specific controls (user requested verification)
+            if (email.Contains("gmail", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!email.EndsWith("@gmail.com", StringComparison.OrdinalIgnoreCase))
+                {
+                    errorMessage = "Une adresse Gmail doit se terminer précisément par '@gmail.com'.";
+                    return false;
+                }
+
+                // Check local part of Gmail: only letters, numbers, and periods are allowed
+                var localPart = email.Split('@')[0];
+                if (string.IsNullOrEmpty(localPart) || !Regex.IsMatch(localPart, @"^[a-z0-9\.]+$", RegexOptions.IgnoreCase))
+                {
+                    errorMessage = "Identifiant Gmail invalide (seuls les lettres, chiffres et points sont permis).";
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         // ==========================================
