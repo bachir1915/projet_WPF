@@ -3,11 +3,13 @@ using System.Text.Json.Serialization;
 
 namespace CrudWpfDemo.Models
 {
-    public class Etudiant : INotifyPropertyChanged
+    // classe pour les enseignants
+    public class Enseignant : INotifyPropertyChanged
     {
         private string _nom = string.Empty;
         private string _prenom = string.Empty;
         private string _email = string.Empty;
+        private string _specialite = string.Empty;
         private int _idClasse;
         private string _nomClasse = string.Empty;
 
@@ -36,6 +38,13 @@ namespace CrudWpfDemo.Models
             set { _email = value; OnPropertyChanged(nameof(Email)); }
         }
 
+        [JsonPropertyName("specialite")]
+        public string Specialite
+        {
+            get => _specialite;
+            set { _specialite = value; OnPropertyChanged(nameof(Specialite)); }
+        }
+
         [JsonPropertyName("id_classe")]
         [JsonConverter(typeof(FlexibleIntConverter))]
         public int IdClasse
@@ -51,21 +60,12 @@ namespace CrudWpfDemo.Models
             set { _nomClasse = value; OnPropertyChanged(nameof(NomClasse)); }
         }
 
-        // nom complet pour les combobox
+        // propriété calculée pour afficher dans les combobox
         [JsonIgnore]
         public string NomComplet => $"{Prenom} {Nom}";
 
-        private bool _isSelectedForEmail;
-
-        [JsonIgnore]
-        public bool IsSelectedForEmail
-        {
-            get => _isSelectedForEmail;
-            set { _isSelectedForEmail = value; OnPropertyChanged(nameof(IsSelectedForEmail)); }
-        }
-
         public event PropertyChangedEventHandler? PropertyChanged;
-        protected void OnPropertyChanged(string propName) => 
+        protected void OnPropertyChanged(string propName) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
     }
 }

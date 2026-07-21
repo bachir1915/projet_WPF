@@ -22,10 +22,14 @@ namespace CrudWpfDemo
         private readonly ObservableCollection<Classe> _classes = new();
         private readonly ObservableCollection<Note> _notes = new();
         private readonly ObservableCollection<FiliereResume> _filieres = new();
+        private readonly ObservableCollection<Enseignant> _enseignants = new();
+        private readonly ObservableCollection<Matiere> _matieres = new();
 
         private Etudiant? _selectedStudent;
         private Classe? _selectedClass;
         private Note? _selectedGrade;
+        private Enseignant? _selectedEnseignant;
+        private Matiere? _selectedMatiere;
 
         public MainWindow()
         {
@@ -36,8 +40,9 @@ namespace CrudWpfDemo
             GrilleNotes.ItemsSource = _notes;
             GrilleDashboardStudents.ItemsSource = _students;
             GrilleFilieres.ItemsSource = _filieres;
+            GrilleEnseignants.ItemsSource = _enseignants;
+            GrilleMatieres.ItemsSource = _matieres;
 
-            // Load data on startup
             this.Loaded += MainWindow_Loaded;
         }
 
@@ -49,22 +54,23 @@ namespace CrudWpfDemo
         private async Task LoadAllDataAsync()
         {
             TxtApiStatus.Text = "API: Connexion en cours...";
-            TxtApiStatus.Foreground = new SolidColorBrush(Color.FromRgb(234, 179, 8)); // Yellow/Warning
+            TxtApiStatus.Foreground = new SolidColorBrush(Color.FromRgb(234, 179, 8));
 
             try
             {
-                // Sequence of loading
                 await LoadClassesAsync();
                 await LoadStudentsAsync();
                 await LoadNotesAsync();
+                await LoadEnseignantsAsync();
+                await LoadMatieresAsync();
 
                 TxtApiStatus.Text = "API: Connecté (8000)";
-                TxtApiStatus.Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129)); // Emerald/Success
+                TxtApiStatus.Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129));
             }
             catch (Exception ex)
             {
                 TxtApiStatus.Text = "API: Erreur de connexion";
-                TxtApiStatus.Foreground = new SolidColorBrush(Color.FromRgb(239, 104, 104)); // Danger
+                TxtApiStatus.Foreground = new SolidColorBrush(Color.FromRgb(239, 104, 104));
 
                 ShowStatus("Impossible de contacter le serveur backend PHP. Vérifiez qu'il est bien démarré sur le port 8000.", true);
                 MessageBox.Show($"Erreur lors de la connexion à l'API PHP :\n{ex.Message}\n\nAssurez-vous d'avoir exécuté la commande 'php -S localhost:8000' dans le dossier de l'API.", "Erreur de Connexion", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -72,26 +78,30 @@ namespace CrudWpfDemo
         }
 
         // ==========================================
-        //  NAVIGATION MENU
+        //  NAVIGATION
         // ==========================================
         private void BtnMenu_Click(object sender, RoutedEventArgs e)
         {
             var clickedButton = sender as Button;
             if (clickedButton == null) return;
 
-            // Reset active style on all menu buttons
+            // on remet le style normal sur tous les boutons
             BtnMenuDashboard.Style = (Style)FindResource("BoutonMenu");
             BtnMenuInscriptions.Style = (Style)FindResource("BoutonMenu");
             BtnMenuClasses.Style = (Style)FindResource("BoutonMenu");
+            BtnMenuEnseignants.Style = (Style)FindResource("BoutonMenu");
+            BtnMenuMatieres.Style = (Style)FindResource("BoutonMenu");
             BtnMenuNotes.Style = (Style)FindResource("BoutonMenu");
 
-            // Hide all views
+            // on cache tout
             GridDashboard.Visibility = Visibility.Collapsed;
             GridInscriptions.Visibility = Visibility.Collapsed;
             GridClasses.Visibility = Visibility.Collapsed;
+            GridEnseignants.Visibility = Visibility.Collapsed;
+            GridMatieres.Visibility = Visibility.Collapsed;
             GridNotes.Visibility = Visibility.Collapsed;
 
-            // Activate chosen view and button style
+            // on active le bouton cliqué et on affiche la bonne section
             clickedButton.Style = (Style)FindResource("BoutonMenuActive");
 
             if (clickedButton == BtnMenuDashboard)
@@ -107,6 +117,14 @@ namespace CrudWpfDemo
             {
                 GridClasses.Visibility = Visibility.Visible;
             }
+            else if (clickedButton == BtnMenuEnseignants)
+            {
+                GridEnseignants.Visibility = Visibility.Visible;
+            }
+            else if (clickedButton == BtnMenuMatieres)
+            {
+                GridMatieres.Visibility = Visibility.Visible;
+            }
             else if (clickedButton == BtnMenuNotes)
             {
                 GridNotes.Visibility = Visibility.Visible;
@@ -114,24 +132,23 @@ namespace CrudWpfDemo
         }
 
         // ==========================================
-        //  API DATA FETCHING
+        //  CHARGEMENT DES DONNEES
         // ==========================================
         private async Task LoadClassesAsync()
         {
             string url = BaseApiUrl + "classe/list.php";
             var result = await _httpClient.GetFromJsonAsync<List<Classe>>(url);
-            
+
             _classes.Clear();
             if (result != null)
-            {
                 foreach (var item in result)
-                {
                     _classes.Add(item);
-                }
-            }
 
+            // on recharge les combobox qui utilisent les classes
             ComboStudentClasse.ItemsSource = null;
             ComboStudentClasse.ItemsSource = _classes;
+            ComboEnseignantClasse.ItemsSource = null;
+            ComboEnseignantClasse.ItemsSource = _classes;
         }
 
         private async Task LoadStudentsAsync()
@@ -141,16 +158,13 @@ namespace CrudWpfDemo
 
             _students.Clear();
             if (result != null)
-            {
                 foreach (var item in result)
-                {
                     _students.Add(item);
-                }
-            }
 
+            // on met à jour le combobox des étudiants dans les notes
             ComboGradeStudent.ItemsSource = null;
             ComboGradeStudent.ItemsSource = _students;
-            
+
             UpdateDashboardStats();
         }
 
@@ -161,18 +175,64 @@ namespace CrudWpfDemo
 
             _notes.Clear();
             if (result != null)
-            {
                 foreach (var item in result)
-                {
                     _notes.Add(item);
-                }
-            }
 
             UpdateDashboardStats();
         }
 
+        // on charge les enseignants depuis l'api
+        private async Task LoadEnseignantsAsync()
+        {
+            try
+            {
+                string url = BaseApiUrl + "enseignant/list.php";
+                var result = await _httpClient.GetFromJsonAsync<List<Enseignant>>(url);
+
+                _enseignants.Clear();
+                if (result != null)
+                    foreach (var item in result)
+                        _enseignants.Add(item);
+
+                // on met à jour le combobox dans les matières
+                ComboMatiereEnseignant.ItemsSource = null;
+                ComboMatiereEnseignant.ItemsSource = _enseignants;
+
+                UpdateDashboardStats();
+            }
+            catch
+            {
+                // si l'api enseignant n'est pas encore disponible on continue quand même
+            }
+        }
+
+        // on charge les matieres depuis l'api
+        private async Task LoadMatieresAsync()
+        {
+            try
+            {
+                string url = BaseApiUrl + "matiere/list.php";
+                var result = await _httpClient.GetFromJsonAsync<List<Matiere>>(url);
+
+                _matieres.Clear();
+                if (result != null)
+                    foreach (var item in result)
+                        _matieres.Add(item);
+
+                // on met à jour le combobox des matières dans les notes
+                ComboGradeMatiere.ItemsSource = null;
+                ComboGradeMatiere.ItemsSource = _matieres;
+
+                UpdateDashboardStats();
+            }
+            catch
+            {
+                // si l'api matiere n'est pas encore disponible on continue quand même
+            }
+        }
+
         // ==========================================
-        //  MODULE INSCRIPTIONS (STUDENTS) EVENTS
+        //  MODULE INSCRIPTIONS (ETUDIANTS)
         // ==========================================
         private async void BtnStudentAjouter_Click(object sender, RoutedEventArgs e)
         {
@@ -211,7 +271,7 @@ namespace CrudWpfDemo
                     ShowStatus("Étudiant inscrit avec succès !");
                     ViderStudentFormulaire();
                     await LoadStudentsAsync();
-                    await LoadClassesAsync(); // refresh student count on classes
+                    await LoadClassesAsync();
                 }
                 else
                 {
@@ -268,8 +328,8 @@ namespace CrudWpfDemo
                     ShowStatus("Informations de l'étudiant mises à jour.");
                     ViderStudentFormulaire();
                     await LoadStudentsAsync();
-                    await LoadClassesAsync(); // update counts
-                    await LoadNotesAsync(); // update names in notes grid
+                    await LoadClassesAsync();
+                    await LoadNotesAsync();
                 }
                 else
                 {
@@ -340,10 +400,7 @@ namespace CrudWpfDemo
             ComboStudentClasse.SelectedValue = _selectedStudent.IdClasse;
         }
 
-        private void BtnStudentEffacer_Click(object sender, RoutedEventArgs e)
-        {
-            ViderStudentFormulaire();
-        }
+        private void BtnStudentEffacer_Click(object sender, RoutedEventArgs e) => ViderStudentFormulaire();
 
         private void ViderStudentFormulaire()
         {
@@ -356,7 +413,7 @@ namespace CrudWpfDemo
         }
 
         // ==========================================
-        //  MODULE CLASSES EVENTS
+        //  MODULE CLASSES
         // ==========================================
         private async void BtnClassAjouter_Click(object sender, RoutedEventArgs e)
         {
@@ -425,8 +482,8 @@ namespace CrudWpfDemo
                     ShowStatus("Nom de la classe mis à jour.");
                     ViderClassFormulaire();
                     await LoadClassesAsync();
-                    await LoadStudentsAsync(); // update classes in student view
-                    await LoadNotesAsync(); // update class in notes view
+                    await LoadStudentsAsync();
+                    await LoadNotesAsync();
                 }
                 else
                 {
@@ -494,10 +551,7 @@ namespace CrudWpfDemo
             TxtClassNom.Text = _selectedClass.Nom;
         }
 
-        private void BtnClassEffacer_Click(object sender, RoutedEventArgs e)
-        {
-            ViderClassFormulaire();
-        }
+        private void BtnClassEffacer_Click(object sender, RoutedEventArgs e) => ViderClassFormulaire();
 
         private void ViderClassFormulaire()
         {
@@ -507,12 +561,354 @@ namespace CrudWpfDemo
         }
 
         // ==========================================
-        //  MODULE NOTES (GRADES) EVENTS
+        //  MODULE ENSEIGNANTS
+        // ==========================================
+        private async void BtnEnseignantAjouter_Click(object sender, RoutedEventArgs e)
+        {
+            // on vérifie que les champs obligatoires sont remplis
+            if (string.IsNullOrWhiteSpace(TxtEnseignantNom.Text) ||
+                string.IsNullOrWhiteSpace(TxtEnseignantPrenom.Text) ||
+                string.IsNullOrWhiteSpace(TxtEnseignantEmail.Text) ||
+                string.IsNullOrWhiteSpace(TxtEnseignantSpecialite.Text))
+            {
+                ShowStatus("Nom, prénom, email et spécialité sont obligatoires.", true);
+                return;
+            }
+
+            string email = TxtEnseignantEmail.Text.Trim();
+            if (!IsValidEmail(email, out string errorMsg))
+            {
+                ShowStatus(errorMsg, true);
+                return;
+            }
+
+            try
+            {
+                var postData = new FormUrlEncodedContent(new[]
+                {
+                    new KeyValuePair<string, string>("nom", TxtEnseignantNom.Text.Trim()),
+                    new KeyValuePair<string, string>("prenom", TxtEnseignantPrenom.Text.Trim()),
+                    new KeyValuePair<string, string>("email", email),
+                    new KeyValuePair<string, string>("specialite", TxtEnseignantSpecialite.Text.Trim()),
+                    new KeyValuePair<string, string>("id_classe", ComboEnseignantClasse.SelectedValue?.ToString() ?? "0")
+                });
+
+                var response = await _httpClient.PostAsync(BaseApiUrl + "enseignant/create.php", postData);
+                response.EnsureSuccessStatusCode();
+
+                var result = await response.Content.ReadFromJsonAsync<CreateUpdateDeleteResult>();
+                if (result != null && result.Success)
+                {
+                    ShowStatus("Enseignant ajouté avec succès !");
+                    ViderEnseignantFormulaire();
+                    await LoadEnseignantsAsync();
+                }
+                else
+                {
+                    ShowStatus("Erreur : " + (result?.Message ?? "Échec d'ajout"), true);
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowStatus("Erreur d'appel API : " + ex.Message, true);
+            }
+        }
+
+        private async void BtnEnseignantModifier_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedEnseignant == null)
+            {
+                ShowStatus("Sélectionnez d'abord un enseignant dans la liste.", true);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(TxtEnseignantNom.Text) ||
+                string.IsNullOrWhiteSpace(TxtEnseignantPrenom.Text) ||
+                string.IsNullOrWhiteSpace(TxtEnseignantEmail.Text) ||
+                string.IsNullOrWhiteSpace(TxtEnseignantSpecialite.Text))
+            {
+                ShowStatus("Tous les champs sont obligatoires.", true);
+                return;
+            }
+
+            string email = TxtEnseignantEmail.Text.Trim();
+            if (!IsValidEmail(email, out string errorMsg))
+            {
+                ShowStatus(errorMsg, true);
+                return;
+            }
+
+            try
+            {
+                var postData = new FormUrlEncodedContent(new[]
+                {
+                    new KeyValuePair<string, string>("id", _selectedEnseignant.Id.ToString()),
+                    new KeyValuePair<string, string>("nom", TxtEnseignantNom.Text.Trim()),
+                    new KeyValuePair<string, string>("prenom", TxtEnseignantPrenom.Text.Trim()),
+                    new KeyValuePair<string, string>("email", email),
+                    new KeyValuePair<string, string>("specialite", TxtEnseignantSpecialite.Text.Trim()),
+                    new KeyValuePair<string, string>("id_classe", ComboEnseignantClasse.SelectedValue?.ToString() ?? "0")
+                });
+
+                var response = await _httpClient.PostAsync(BaseApiUrl + "enseignant/update.php", postData);
+                response.EnsureSuccessStatusCode();
+
+                var result = await response.Content.ReadFromJsonAsync<CreateUpdateDeleteResult>();
+                if (result != null && result.Success)
+                {
+                    ShowStatus("Enseignant modifié avec succès.");
+                    ViderEnseignantFormulaire();
+                    await LoadEnseignantsAsync();
+                }
+                else
+                {
+                    ShowStatus("Erreur : " + (result?.Message ?? "Échec de modification"), true);
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowStatus("Erreur d'appel API : " + ex.Message, true);
+            }
+        }
+
+        private async void BtnEnseignantSupprimer_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedEnseignant == null)
+            {
+                ShowStatus("Sélectionnez d'abord un enseignant à supprimer.", true);
+                return;
+            }
+
+            var confirm = MessageBox.Show(
+                $"Supprimer l'enseignant {_selectedEnseignant.Prenom} {_selectedEnseignant.Nom} ?",
+                "Confirmation de suppression",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (confirm == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    var postData = new FormUrlEncodedContent(new[]
+                    {
+                        new KeyValuePair<string, string>("id", _selectedEnseignant.Id.ToString())
+                    });
+
+                    var response = await _httpClient.PostAsync(BaseApiUrl + "enseignant/delete.php", postData);
+                    response.EnsureSuccessStatusCode();
+
+                    var result = await response.Content.ReadFromJsonAsync<CreateUpdateDeleteResult>();
+                    if (result != null && result.Success)
+                    {
+                        ShowStatus("Enseignant supprimé.");
+                        ViderEnseignantFormulaire();
+                        await LoadEnseignantsAsync();
+                    }
+                    else
+                    {
+                        ShowStatus("Erreur : " + (result?.Message ?? "Échec de suppression"), true);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ShowStatus("Erreur d'appel API : " + ex.Message, true);
+                }
+            }
+        }
+
+        private void GrilleEnseignants_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            _selectedEnseignant = GrilleEnseignants.SelectedItem as Enseignant;
+            if (_selectedEnseignant == null) return;
+
+            TxtEnseignantNom.Text = _selectedEnseignant.Nom;
+            TxtEnseignantPrenom.Text = _selectedEnseignant.Prenom;
+            TxtEnseignantEmail.Text = _selectedEnseignant.Email;
+            TxtEnseignantSpecialite.Text = _selectedEnseignant.Specialite;
+            ComboEnseignantClasse.SelectedValue = _selectedEnseignant.IdClasse;
+        }
+
+        private void BtnEnseignantEffacer_Click(object sender, RoutedEventArgs e) => ViderEnseignantFormulaire();
+
+        private void ViderEnseignantFormulaire()
+        {
+            TxtEnseignantNom.Clear();
+            TxtEnseignantPrenom.Clear();
+            TxtEnseignantEmail.Clear();
+            TxtEnseignantSpecialite.Clear();
+            ComboEnseignantClasse.SelectedIndex = -1;
+            _selectedEnseignant = null;
+            GrilleEnseignants.SelectedItem = null;
+        }
+
+        // ==========================================
+        //  MODULE MATIERES
+        // ==========================================
+        private async void BtnMatiereAjouter_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(TxtMatiereNom.Text))
+            {
+                ShowStatus("Le nom de la matière est obligatoire.", true);
+                return;
+            }
+
+            // on récupère le coefficient depuis la combobox
+            int coeff = ComboMatiereCoeff.SelectedIndex + 1;
+
+            try
+            {
+                var postData = new FormUrlEncodedContent(new[]
+                {
+                    new KeyValuePair<string, string>("nom", TxtMatiereNom.Text.Trim()),
+                    new KeyValuePair<string, string>("coefficient", coeff.ToString()),
+                    new KeyValuePair<string, string>("id_enseignant", ComboMatiereEnseignant.SelectedValue?.ToString() ?? "0")
+                });
+
+                var response = await _httpClient.PostAsync(BaseApiUrl + "matiere/create.php", postData);
+                response.EnsureSuccessStatusCode();
+
+                var result = await response.Content.ReadFromJsonAsync<CreateUpdateDeleteResult>();
+                if (result != null && result.Success)
+                {
+                    ShowStatus("Matière ajoutée avec succès !");
+                    ViderMatiereFormulaire();
+                    await LoadMatieresAsync();
+                }
+                else
+                {
+                    ShowStatus("Erreur : " + (result?.Message ?? "Échec d'ajout"), true);
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowStatus("Erreur d'appel API : " + ex.Message, true);
+            }
+        }
+
+        private async void BtnMatiereModifier_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedMatiere == null)
+            {
+                ShowStatus("Sélectionnez d'abord une matière dans la liste.", true);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(TxtMatiereNom.Text))
+            {
+                ShowStatus("Le nom de la matière est obligatoire.", true);
+                return;
+            }
+
+            int coeff = ComboMatiereCoeff.SelectedIndex + 1;
+
+            try
+            {
+                var postData = new FormUrlEncodedContent(new[]
+                {
+                    new KeyValuePair<string, string>("id", _selectedMatiere.Id.ToString()),
+                    new KeyValuePair<string, string>("nom", TxtMatiereNom.Text.Trim()),
+                    new KeyValuePair<string, string>("coefficient", coeff.ToString()),
+                    new KeyValuePair<string, string>("id_enseignant", ComboMatiereEnseignant.SelectedValue?.ToString() ?? "0")
+                });
+
+                var response = await _httpClient.PostAsync(BaseApiUrl + "matiere/update.php", postData);
+                response.EnsureSuccessStatusCode();
+
+                var result = await response.Content.ReadFromJsonAsync<CreateUpdateDeleteResult>();
+                if (result != null && result.Success)
+                {
+                    ShowStatus("Matière modifiée avec succès.");
+                    ViderMatiereFormulaire();
+                    await LoadMatieresAsync();
+                }
+                else
+                {
+                    ShowStatus("Erreur : " + (result?.Message ?? "Échec de modification"), true);
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowStatus("Erreur d'appel API : " + ex.Message, true);
+            }
+        }
+
+        private async void BtnMatiereSupprimer_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedMatiere == null)
+            {
+                ShowStatus("Sélectionnez d'abord une matière à supprimer.", true);
+                return;
+            }
+
+            var confirm = MessageBox.Show(
+                $"Supprimer la matière '{_selectedMatiere.Nom}' ?",
+                "Confirmation de suppression",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (confirm == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    var postData = new FormUrlEncodedContent(new[]
+                    {
+                        new KeyValuePair<string, string>("id", _selectedMatiere.Id.ToString())
+                    });
+
+                    var response = await _httpClient.PostAsync(BaseApiUrl + "matiere/delete.php", postData);
+                    response.EnsureSuccessStatusCode();
+
+                    var result = await response.Content.ReadFromJsonAsync<CreateUpdateDeleteResult>();
+                    if (result != null && result.Success)
+                    {
+                        ShowStatus("Matière supprimée.");
+                        ViderMatiereFormulaire();
+                        await LoadMatieresAsync();
+                    }
+                    else
+                    {
+                        ShowStatus("Erreur : " + (result?.Message ?? "Échec de suppression"), true);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ShowStatus("Erreur d'appel API : " + ex.Message, true);
+                }
+            }
+        }
+
+        private void GrilleMatieres_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            _selectedMatiere = GrilleMatieres.SelectedItem as Matiere;
+            if (_selectedMatiere == null) return;
+
+            TxtMatiereNom.Text = _selectedMatiere.Nom;
+            // on sélectionne le bon coefficient dans le combobox (index = coeff - 1)
+            ComboMatiereCoeff.SelectedIndex = Math.Max(0, _selectedMatiere.Coefficient - 1);
+            ComboMatiereEnseignant.SelectedValue = _selectedMatiere.IdEnseignant;
+        }
+
+        private void BtnMatiereEffacer_Click(object sender, RoutedEventArgs e) => ViderMatiereFormulaire();
+
+        private void ViderMatiereFormulaire()
+        {
+            TxtMatiereNom.Clear();
+            ComboMatiereCoeff.SelectedIndex = 0;
+            ComboMatiereEnseignant.SelectedIndex = -1;
+            _selectedMatiere = null;
+            GrilleMatieres.SelectedItem = null;
+        }
+
+        // ==========================================
+        //  MODULE NOTES
         // ==========================================
         private async void BtnGradeAjouter_Click(object sender, RoutedEventArgs e)
         {
+            // on récupère la matière depuis le combobox (texte tapé ou sélectionné)
+            string matiere = ComboGradeMatiere.Text?.Trim() ?? "";
+
             if (ComboGradeStudent.SelectedValue == null ||
-                string.IsNullOrWhiteSpace(TxtGradeMatiere.Text) ||
+                string.IsNullOrWhiteSpace(matiere) ||
                 string.IsNullOrWhiteSpace(TxtGradeValeur.Text))
             {
                 ShowStatus("Tous les champs sont obligatoires.", true);
@@ -530,7 +926,7 @@ namespace CrudWpfDemo
                 var postData = new FormUrlEncodedContent(new[]
                 {
                     new KeyValuePair<string, string>("id_etudiant", ComboGradeStudent.SelectedValue.ToString()!),
-                    new KeyValuePair<string, string>("matiere", TxtGradeMatiere.Text.Trim()),
+                    new KeyValuePair<string, string>("matiere", matiere),
                     new KeyValuePair<string, string>("note", noteVal.ToString(System.Globalization.CultureInfo.InvariantCulture))
                 });
 
@@ -563,8 +959,10 @@ namespace CrudWpfDemo
                 return;
             }
 
+            string matiere = ComboGradeMatiere.Text?.Trim() ?? "";
+
             if (ComboGradeStudent.SelectedValue == null ||
-                string.IsNullOrWhiteSpace(TxtGradeMatiere.Text) ||
+                string.IsNullOrWhiteSpace(matiere) ||
                 string.IsNullOrWhiteSpace(TxtGradeValeur.Text))
             {
                 ShowStatus("Tous les champs sont obligatoires.", true);
@@ -583,7 +981,7 @@ namespace CrudWpfDemo
                 {
                     new KeyValuePair<string, string>("id", _selectedGrade.Id.ToString()),
                     new KeyValuePair<string, string>("id_etudiant", ComboGradeStudent.SelectedValue.ToString()!),
-                    new KeyValuePair<string, string>("matiere", TxtGradeMatiere.Text.Trim()),
+                    new KeyValuePair<string, string>("matiere", matiere),
                     new KeyValuePair<string, string>("note", noteVal.ToString(System.Globalization.CultureInfo.InvariantCulture))
                 });
 
@@ -659,26 +1057,25 @@ namespace CrudWpfDemo
             if (_selectedGrade == null) return;
 
             ComboGradeStudent.SelectedValue = _selectedGrade.IdEtudiant;
-            TxtGradeMatiere.Text = _selectedGrade.Matiere;
+            // on met la matière dans le combobox
+            ComboGradeMatiere.Text = _selectedGrade.Matiere;
             TxtGradeValeur.Text = _selectedGrade.Valeur.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
 
-        private void BtnGradeEffacer_Click(object sender, RoutedEventArgs e)
-        {
-            ViderGradeFormulaire();
-        }
+        private void BtnGradeEffacer_Click(object sender, RoutedEventArgs e) => ViderGradeFormulaire();
 
         private void ViderGradeFormulaire()
         {
             ComboGradeStudent.SelectedIndex = -1;
-            TxtGradeMatiere.Clear();
+            ComboGradeMatiere.Text = "";
+            ComboGradeMatiere.SelectedIndex = -1;
             TxtGradeValeur.Clear();
             _selectedGrade = null;
             GrilleNotes.SelectedItem = null;
         }
 
         // ==========================================
-        //  SEARCH & LIVE FILTERING EVENTS
+        //  RECHERCHE EN TEMPS REEL
         // ==========================================
         private void TxtSearchStudent_TextChanged(object sender, TextChangedEventArgs e)
         {
@@ -717,11 +1114,55 @@ namespace CrudWpfDemo
                 foreach (var cls in _classes)
                 {
                     if (cls.Nom.ToLower().Contains(filterText))
-                    {
                         filtered.Add(cls);
-                    }
                 }
                 GrilleClasses.ItemsSource = filtered;
+            }
+        }
+
+        private void TxtSearchEnseignant_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            var filterText = TxtSearchEnseignant.Text.Trim().ToLower();
+            if (string.IsNullOrEmpty(filterText))
+            {
+                GrilleEnseignants.ItemsSource = _enseignants;
+            }
+            else
+            {
+                var filtered = new ObservableCollection<Enseignant>();
+                foreach (var ens in _enseignants)
+                {
+                    if (ens.Nom.ToLower().Contains(filterText) ||
+                        ens.Prenom.ToLower().Contains(filterText) ||
+                        ens.Specialite.ToLower().Contains(filterText) ||
+                        ens.NomClasse.ToLower().Contains(filterText))
+                    {
+                        filtered.Add(ens);
+                    }
+                }
+                GrilleEnseignants.ItemsSource = filtered;
+            }
+        }
+
+        private void TxtSearchMatiere_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            var filterText = TxtSearchMatiere.Text.Trim().ToLower();
+            if (string.IsNullOrEmpty(filterText))
+            {
+                GrilleMatieres.ItemsSource = _matieres;
+            }
+            else
+            {
+                var filtered = new ObservableCollection<Matiere>();
+                foreach (var mat in _matieres)
+                {
+                    if (mat.Nom.ToLower().Contains(filterText) ||
+                        mat.NomEnseignant.ToLower().Contains(filterText))
+                    {
+                        filtered.Add(mat);
+                    }
+                }
+                GrilleMatieres.ItemsSource = filtered;
             }
         }
 
@@ -749,52 +1190,45 @@ namespace CrudWpfDemo
         }
 
         // ==========================================
-        //  DASHBOARD STATISTICS & ISI EMAIL ASSIGNMENT
+        //  DASHBOARD ET ATTRIBUTION EMAIL
         // ==========================================
         private void UpdateDashboardStats()
         {
-            // Tous les calculs sont désormais délégués à la couche métier
-            // (Metier/CalculMetier.cs), qui ne dépend d'aucun élément
-            // d'interface. MainWindow se contente d'afficher les résultats.
-
             int nombreEtudiants = CalculMetier.CalculerNombreEtudiants(_students);
             int nombreInscriptions = CalculMetier.CalculerNombreInscriptions(_students);
             int nombreClasses = CalculMetier.CalculerNombreClasses(_classes);
             double moyenneGenerale = CalculMetier.CalculerMoyenneGenerale(_notes);
             string majorPromotion = CalculMetier.TrouverMajorPromotion(_notes);
+            int nombreEnseignants = CalculMetier.CalculerNombreEnseignants(_enseignants);
+            int nombreMatieres = CalculMetier.CalculerNombreMatieres(_matieres);
 
             TxtTotalStudents.Text = nombreEtudiants.ToString();
             TxtTotalInscriptions.Text = nombreInscriptions.ToString();
             TxtTotalClasses.Text = nombreClasses.ToString();
             TxtMoyenne.Text = $"{moyenneGenerale:F2} / 20";
             TxtBestStudent.Text = majorPromotion;
+            TxtTotalEnseignants.Text = nombreEnseignants.ToString();
+            TxtTotalMatieres.Text = nombreMatieres.ToString();
 
-            // Tableau récapitulatif : répartition des étudiants par filière
-            // avec, pour chacune, le nombre d'étudiants, d'inscriptions et la moyenne
+            // tableau récap par filière
             var resumeParFiliere = CalculMetier.CalculerResumeParFiliere(_students, _classes, _notes);
 
             _filieres.Clear();
             foreach (var stat in resumeParFiliere)
-            {
                 _filieres.Add(stat);
-            }
         }
 
         private void BtnSelectAll_Click(object sender, RoutedEventArgs e)
         {
             foreach (var student in _students)
-            {
                 student.IsSelectedForEmail = true;
-            }
             GrilleDashboardStudents.Items.Refresh();
         }
 
         private void BtnDeselectAll_Click(object sender, RoutedEventArgs e)
         {
             foreach (var student in _students)
-            {
                 student.IsSelectedForEmail = false;
-            }
             GrilleDashboardStudents.Items.Refresh();
         }
 
@@ -804,9 +1238,7 @@ namespace CrudWpfDemo
             foreach (var student in _students)
             {
                 if (student.IsSelectedForEmail)
-                {
                     selectedStudents.Add(student);
-                }
             }
 
             if (selectedStudents.Count == 0)
@@ -825,8 +1257,7 @@ namespace CrudWpfDemo
             foreach (var student in selectedStudents)
             {
                 string generatedEmail = "";
-                
-                // Clean accents and spaces
+
                 string cleanPrenom = CleanStringForEmail(student.Prenom);
                 string cleanNom = CleanStringForEmail(student.Nom);
 
@@ -860,13 +1291,9 @@ namespace CrudWpfDemo
                     {
                         var result = await response.Content.ReadFromJsonAsync<CreateUpdateDeleteResult>();
                         if (result != null && result.Success)
-                        {
                             successCount++;
-                        }
                         else
-                        {
                             failCount++;
-                        }
                     }
                     else
                     {
@@ -887,7 +1314,7 @@ namespace CrudWpfDemo
         private string CleanStringForEmail(string input)
         {
             if (string.IsNullOrWhiteSpace(input)) return "";
-            
+
             string normalized = input.Normalize(System.Text.NormalizationForm.FormD);
             var sb = new System.Text.StringBuilder();
 
@@ -897,9 +1324,7 @@ namespace CrudWpfDemo
                 if (unicodeCategory != System.Globalization.UnicodeCategory.NonSpacingMark)
                 {
                     if (char.IsLetterOrDigit(c))
-                    {
                         sb.Append(char.ToLowerInvariant(c));
-                    }
                 }
             }
 
@@ -907,7 +1332,7 @@ namespace CrudWpfDemo
         }
 
         // ==========================================
-        //  EMAIL INPUT VALIDATION (CONTROL SASIE)
+        //  VALIDATION EMAIL
         // ==========================================
         private bool IsValidEmail(string email, out string errorMessage)
         {
@@ -919,7 +1344,6 @@ namespace CrudWpfDemo
                 return false;
             }
 
-            // General email format regex check
             var emailRegex = new Regex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.IgnoreCase);
             if (!emailRegex.IsMatch(email))
             {
@@ -927,7 +1351,6 @@ namespace CrudWpfDemo
                 return false;
             }
 
-            // Gmail-specific controls (user requested verification)
             if (email.Contains("gmail", StringComparison.OrdinalIgnoreCase))
             {
                 if (!email.EndsWith("@gmail.com", StringComparison.OrdinalIgnoreCase))
@@ -936,7 +1359,6 @@ namespace CrudWpfDemo
                     return false;
                 }
 
-                // Check local part of Gmail: only letters, numbers, and periods are allowed
                 var localPart = email.Split('@')[0];
                 if (string.IsNullOrEmpty(localPart) || !Regex.IsMatch(localPart, @"^[a-z0-9\.]+$", RegexOptions.IgnoreCase))
                 {
@@ -949,7 +1371,7 @@ namespace CrudWpfDemo
         }
 
         // ==========================================
-        //  SYSTEM / UI ALERTS
+        //  MESSAGES D'ALERTE UI
         // ==========================================
         private async void ShowStatus(string message, bool isError = false)
         {
@@ -957,25 +1379,21 @@ namespace CrudWpfDemo
 
             if (isError)
             {
-                StatusBanner.Background = new SolidColorBrush(Color.FromRgb(254, 242, 242)); // Red 50
-                TxtStatusMessage.Foreground = new SolidColorBrush(Color.FromRgb(220, 38, 38)); // Red 600
+                StatusBanner.Background = new SolidColorBrush(Color.FromRgb(254, 242, 242));
+                TxtStatusMessage.Foreground = new SolidColorBrush(Color.FromRgb(220, 38, 38));
             }
             else
             {
-                StatusBanner.Background = new SolidColorBrush(Color.FromRgb(238, 242, 255)); // Indigo 50
-                TxtStatusMessage.Foreground = new SolidColorBrush(Color.FromRgb(79, 70, 229)); // Indigo 600
+                StatusBanner.Background = new SolidColorBrush(Color.FromRgb(238, 242, 255));
+                TxtStatusMessage.Foreground = new SolidColorBrush(Color.FromRgb(79, 70, 229));
             }
 
             StatusBanner.Visibility = Visibility.Visible;
 
-            // Wait 5 seconds then hide
             await Task.Delay(5000);
 
-            // Hide only if the message hasn't changed in between
             if (TxtStatusMessage.Text == message)
-            {
                 StatusBanner.Visibility = Visibility.Collapsed;
-            }
         }
     }
 }

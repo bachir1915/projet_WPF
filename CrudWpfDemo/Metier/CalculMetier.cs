@@ -39,6 +39,18 @@ namespace CrudWpfDemo.Metier
             return classes?.Count() ?? 0;
         }
 
+        // nombre total d'enseignants
+        public static int CalculerNombreEnseignants(IEnumerable<Enseignant> enseignants)
+        {
+            return enseignants?.Count() ?? 0;
+        }
+
+        // nombre total de matieres
+        public static int CalculerNombreMatieres(IEnumerable<Matiere> matieres)
+        {
+            return matieres?.Count() ?? 0;
+        }
+
         /// <summary>
         /// Moyenne générale toutes notes confondues.
         /// </summary>
