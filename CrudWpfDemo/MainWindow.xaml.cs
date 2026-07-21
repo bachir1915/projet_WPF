@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using CrudWpfDemo.Metier;
 using CrudWpfDemo.Models;
 
 namespace CrudWpfDemo
@@ -20,6 +21,7 @@ namespace CrudWpfDemo
         private readonly ObservableCollection<Etudiant> _students = new();
         private readonly ObservableCollection<Classe> _classes = new();
         private readonly ObservableCollection<Note> _notes = new();
+        private readonly ObservableCollection<FiliereResume> _filieres = new();
 
         private Etudiant? _selectedStudent;
         private Classe? _selectedClass;
@@ -33,6 +35,7 @@ namespace CrudWpfDemo
             GrilleClasses.ItemsSource = _classes;
             GrilleNotes.ItemsSource = _notes;
             GrilleDashboardStudents.ItemsSource = _students;
+            GrilleFilieres.ItemsSource = _filieres;
 
             // Load data on startup
             this.Loaded += MainWindow_Loaded;
@@ -750,55 +753,30 @@ namespace CrudWpfDemo
         // ==========================================
         private void UpdateDashboardStats()
         {
-            TxtStatTotalStudents.Text = _students.Count.ToString();
-            TxtStatTotalClasses.Text = _classes.Count.ToString();
-            
-            if (_notes.Count > 0)
-            {
-                float sum = 0;
-                foreach (var note in _notes)
-                {
-                    sum += note.Valeur;
-                }
-                float avg = sum / _notes.Count;
-                TxtStatAverage.Text = $"{avg:F2} / 20";
-            }
-            else
-            {
-                TxtStatAverage.Text = "0.00 / 20";
-            }
+            // Tous les calculs sont désormais délégués à la couche métier
+            // (Metier/CalculMetier.cs), qui ne dépend d'aucun élément
+            // d'interface. MainWindow se contente d'afficher les résultats.
 
-            // Find major de promotion
-            if (_students.Count > 0 && _notes.Count > 0)
-            {
-                var studentAverages = new Dictionary<int, (string Name, float Sum, int Count)>();
-                foreach (var note in _notes)
-                {
-                    if (!studentAverages.ContainsKey(note.IdEtudiant))
-                    {
-                        studentAverages[note.IdEtudiant] = (note.NomCompletEtudiant, 0, 0);
-                    }
-                    var current = studentAverages[note.IdEtudiant];
-                    studentAverages[note.IdEtudiant] = (current.Name, current.Sum + note.Valeur, current.Count + 1);
-                }
+            int nombreEtudiants = CalculMetier.CalculerNombreEtudiants(_students);
+            int nombreInscriptions = CalculMetier.CalculerNombreInscriptions(_students);
+            int nombreClasses = CalculMetier.CalculerNombreClasses(_classes);
+            double moyenneGenerale = CalculMetier.CalculerMoyenneGenerale(_notes);
+            string majorPromotion = CalculMetier.TrouverMajorPromotion(_notes);
 
-                string bestStudentName = "Aucun";
-                float highestAvg = -1f;
+            TxtTotalStudents.Text = nombreEtudiants.ToString();
+            TxtTotalInscriptions.Text = nombreInscriptions.ToString();
+            TxtTotalClasses.Text = nombreClasses.ToString();
+            TxtMoyenne.Text = $"{moyenneGenerale:F2} / 20";
+            TxtBestStudent.Text = majorPromotion;
 
-                foreach (var pair in studentAverages)
-                {
-                    float studentAvg = pair.Value.Sum / pair.Value.Count;
-                    if (studentAvg > highestAvg)
-                    {
-                        highestAvg = studentAvg;
-                        bestStudentName = $"{pair.Value.Name} ({studentAvg:F1}/20)";
-                    }
-                }
-                TxtStatBestStudent.Text = bestStudentName;
-            }
-            else
+            // Tableau récapitulatif : répartition des étudiants par filière
+            // avec, pour chacune, le nombre d'étudiants, d'inscriptions et la moyenne
+            var resumeParFiliere = CalculMetier.CalculerResumeParFiliere(_students, _classes, _notes);
+
+            _filieres.Clear();
+            foreach (var stat in resumeParFiliere)
             {
-                TxtStatBestStudent.Text = "Aucun";
+                _filieres.Add(stat);
             }
         }
 

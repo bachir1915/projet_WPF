@@ -66,10 +66,12 @@
                 <TextBlock x:Name="TxtStatusMessage" Text="Message système" Foreground="#4F46E5" FontWeight="SemiBold" FontSize="12" />
             </Border>
 
-            <!-- 0. MODULE DASHBOARD & STATISTIQUES -->
+            <!-- 0. MODULE DASHBOARD & RÉCAPITULATIF -->
             <Grid x:Name="GridDashboard" Grid.Row="1" Visibility="Visible">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" /> <!-- Stat cards -->
+                    <RowDefinition Height="20" />
+                    <RowDefinition Height="Auto" /> <!-- Répartition par filière -->
                     <RowDefinition Height="20" />
                     <RowDefinition Height="*" />    <!-- Group Email action panel -->
                 </Grid.RowDefinitions>
@@ -84,43 +86,71 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="20" />
                         <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="20" />
+                        <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
                     <!-- Total Students Card -->
                     <Border Grid.Column="0" Background="White" CornerRadius="8" Padding="15" BorderThickness="1" BorderBrush="{StaticResource BrushBordure}">
                         <StackPanel>
                             <TextBlock Text="Total Étudiants" Foreground="{StaticResource BrushTexteMute}" FontSize="12" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="TxtStatTotalStudents" Text="0" Foreground="{StaticResource BrushPrimaire}" FontSize="28" FontWeight="Bold" Margin="0,5,0,0"/>
+                            <TextBlock x:Name="TxtTotalStudents" Text="0" Foreground="{StaticResource BrushPrimaire}" FontSize="28" FontWeight="Bold" Margin="0,5,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Total Inscriptions Card -->
+                    <Border Grid.Column="2" Background="White" CornerRadius="8" Padding="15" BorderThickness="1" BorderBrush="{StaticResource BrushBordure}">
+                        <StackPanel>
+                            <TextBlock Text="Total Inscriptions" Foreground="{StaticResource BrushTexteMute}" FontSize="12" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="TxtTotalInscriptions" Text="0" Foreground="#8B5CF6" FontSize="28" FontWeight="Bold" Margin="0,5,0,0"/>
                         </StackPanel>
                     </Border>
 
                     <!-- Total Classes Card -->
-                    <Border Grid.Column="2" Background="White" CornerRadius="8" Padding="15" BorderThickness="1" BorderBrush="{StaticResource BrushBordure}">
+                    <Border Grid.Column="4" Background="White" CornerRadius="8" Padding="15" BorderThickness="1" BorderBrush="{StaticResource BrushBordure}">
                         <StackPanel>
                             <TextBlock Text="Total Classes" Foreground="{StaticResource BrushTexteMute}" FontSize="12" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="TxtStatTotalClasses" Text="0" Foreground="{StaticResource BrushSuccess}" FontSize="28" FontWeight="Bold" Margin="0,5,0,0"/>
+                            <TextBlock x:Name="TxtTotalClasses" Text="0" Foreground="{StaticResource BrushSuccess}" FontSize="28" FontWeight="Bold" Margin="0,5,0,0"/>
                         </StackPanel>
                     </Border>
 
                     <!-- General Average Card -->
-                    <Border Grid.Column="4" Background="White" CornerRadius="8" Padding="15" BorderThickness="1" BorderBrush="{StaticResource BrushBordure}">
+                    <Border Grid.Column="6" Background="White" CornerRadius="8" Padding="15" BorderThickness="1" BorderBrush="{StaticResource BrushBordure}">
                         <StackPanel>
                             <TextBlock Text="Moyenne Générale" Foreground="{StaticResource BrushTexteMute}" FontSize="12" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="TxtStatAverage" Text="0.00 / 20" Foreground="#EAB308" FontSize="28" FontWeight="Bold" Margin="0,5,0,0"/>
+                            <TextBlock x:Name="TxtMoyenne" Text="0.00 / 20" Foreground="#EAB308" FontSize="28" FontWeight="Bold" Margin="0,5,0,0"/>
                         </StackPanel>
                     </Border>
 
                     <!-- Best Student Card -->
-                    <Border Grid.Column="6" Background="White" CornerRadius="8" Padding="15" BorderThickness="1" BorderBrush="{StaticResource BrushBordure}">
+                    <Border Grid.Column="8" Background="White" CornerRadius="8" Padding="15" BorderThickness="1" BorderBrush="{StaticResource BrushBordure}">
                         <StackPanel>
                             <TextBlock Text="Major de Promotion" Foreground="{StaticResource BrushTexteMute}" FontSize="12" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="TxtStatBestStudent" Text="Aucun" Foreground="#F59E0B" FontSize="16" TextTrimming="CharacterEllipsis" FontWeight="Bold" Margin="0,5,0,0"/>
+                            <TextBlock x:Name="TxtBestStudent" Text="Aucun" Foreground="#F59E0B" FontSize="16" TextTrimming="CharacterEllipsis" FontWeight="Bold" Margin="0,5,0,0"/>
                         </StackPanel>
                     </Border>
                 </Grid>
 
-                <!-- Group Email Assignment Section -->
+                <!-- Répartition par filière (tableau) -->
                 <Grid Grid.Row="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="Répartition par Filière" Style="{StaticResource TitrePage}" FontSize="18" Margin="0,0,0,10" />
+                    <DataGrid x:Name="GrilleFilieres" Grid.Row="1" Style="{StaticResource GrilleDonnees}"
+                              Height="200" IsReadOnly="True" AutoGenerateColumns="False">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Filière" Binding="{Binding NomFiliere}" Width="2*" />
+                            <DataGridTextColumn Header="Nombre d'Étudiants" Binding="{Binding NombreEtudiants}" Width="*" />
+                            <DataGridTextColumn Header="Nombre d'Inscriptions" Binding="{Binding NombreInscriptions}" Width="*" />
+                            <DataGridTextColumn Header="Moyenne / 20" Binding="{Binding Moyenne, StringFormat={}{0:F2}}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+
+                <!-- Group Email Assignment Section -->
+                <Grid Grid.Row="4">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="320" />
                         <ColumnDefinition Width="25" />
