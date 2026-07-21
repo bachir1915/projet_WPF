@@ -1,0 +1,43 @@
+<?php
+// schema.sql - Script SQL d'initialisation de la base de données
+
+CREATE DATABASE IF NOT EXISTS `gestion_scolarite` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+USE `gestion_scolarite`;
+
+CREATE TABLE IF NOT EXISTS `classe` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `nom` VARCHAR(100) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `etudiant` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `nom` VARCHAR(100) NOT NULL,
+  `prenom` VARCHAR(100) NOT NULL,
+  `email` VARCHAR(150) NOT NULL,
+  `id_classe` INT NOT NULL,
+  FOREIGN KEY (`id_classe`) REFERENCES `classe`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `enseignant` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `nom` VARCHAR(100) NOT NULL,
+  `prenom` VARCHAR(100) NOT NULL,
+  `email` VARCHAR(150) NOT NULL,
+  `specialite` VARCHAR(100) NOT NULL,
+  `id_classe` INT DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `matiere` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `nom` VARCHAR(100) NOT NULL,
+  `coefficient` INT DEFAULT 1,
+  `id_enseignant` INT DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `note` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `id_etudiant` INT NOT NULL,
+  `matiere` VARCHAR(100) NOT NULL,
+  `valeur` FLOAT NOT NULL,
+  FOREIGN KEY (`id_etudiant`) REFERENCES `etudiant`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
